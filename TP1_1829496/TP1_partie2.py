@@ -19,12 +19,13 @@ W = np.random.normal(0,0.01,(len(np.unique(y)),X.shape[1])) # weights of shape K
 
 best_W = None
 best_accuracy = 0
-lr = 0.01
+lr = 0.0001
 nb_epochs = 500
 # minibatch_size = len(y)//20
 minibatch_size = 1000
 
 losses = []
+losses_validation = []
 accuracies = []
 
 def softmax(x):
@@ -47,14 +48,17 @@ def get_grads(y,y_pred,X):
 def get_loss(y,y_pred):
     # Using mean absolute error
     loss = -y*np.log(y_pred) - (1-y)*np.log(1-y_pred)
-    return loss.sum() / len(y)
+    loss = loss.sum() / len(y)
+    return loss
+
+            
 
 
 for epoch in range(nb_epochs):
     loss = 0
+    loss_validation = 0
     accuracy = 0
-    grad = 0
-    
+
     #Shuffle
     permutation = list(np.random.permutation(X_train.shape[0]))
     shuffled_X = X_train[permutation, :]
@@ -79,30 +83,23 @@ for epoch in range(nb_epochs):
         # select the best parameters based on the validation accuracy
         best_W = W
 
+    y_validation_pred = softmax(W.dot(X_validation.T)).T
+    loss_validation = get_loss(y_validation, y_validation_pred)
+    losses_validation.append(loss_validation)
+
+
+
 accuracy_on_unseen_data = get_accuracy(X_test,y_test,best_W)
 print(accuracy_on_unseen_data) # 0.897506925208
 
-plt.plot(losses)
 
-plt.imshow(best_W[4,:].reshape(8,8))
-
-plt.figure(1)
 ax1 = plt.subplot(221)
-ax1.plot(losses, 'b')
-ax1.set_title('Courbes d\'apprentissage')
-ax1.set_ylabel('Log ngatif de vraisemblance moyenne')
+ax1.plot(losses, 'blue', losses_validation, 'orange')
+ax1.set_ylabel('Average negative log likelihood')
 ax1.set_xlabel('Epoch')
-ax1.text(30, .55, 'Entranement', color='blue')
-ax2 = plt.subplot(222)
-ax2.plot(accuracies)
-ax2.set_title('Prcision sur l\'ensemble de validation')
-ax2.set_ylabel('Pourcentage')
-ax2.set_xlabel('Epoch')
-# ax1.text(30, .65, 'Validation', color='magenta')
-ax3 = plt.subplot(223)
+ax1.text(200, 1.5, 'Train', color='blue')
+ax1.text(200, 1.5, 'Validation', color='orange')
+ax3 = plt.subplot(222)
 ax3.imshow(best_W[4, :].reshape(8, 8))
-ax3.set_title('Poids du chiffre 4')
-ax4 = plt.subplot(224)
-ax4.imshow(best_W[7, :].reshape(8, 8))
-ax4.set_title('Poids du chiffre 7')
+ax3.set_title('Poids appris pour chiffre 4')
 plt.show()

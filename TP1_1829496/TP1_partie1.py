@@ -36,8 +36,8 @@ prob_w = (prob_w_p).sum(0)
 print("Q1 a) Pr(W = 1)={}\n".format(prob_w.squeeze()[1]))
 
 #b) Pr(W = 1 | H = 1)
-prob_h_p_a = (holmes * prob_pluie * prob_arroseur)
-prob_h = prob_h_p_a.sum(1).sum(0).squeeze()[1]
+joint_prob_h_p_a = (holmes * prob_pluie * prob_arroseur)
+prob_h = joint_prob_h_p_a.sum(1).sum(0).squeeze()[1]
 print("Pr(H = 1)={}\n".format(prob_h))
 
 joint_prob_w_h_p_a = watson * holmes * prob_pluie * prob_arroseur
