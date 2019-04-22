@@ -22,9 +22,8 @@ from collections import namedtuple
 # In[2]:
 
 
-__all__ = ['inception_v3',
-           'VGG', 'vgg11', 'vgg11_bn', 'vgg13', 'vgg13_bn', 'vgg16', 'vgg16_bn', 'vgg19_bn', 'vgg19',
-           'resnet18',]
+__all__ = ['VGG', 'vgg11', 'vgg11_bn', 'vgg13', 'vgg13_bn', 'vgg16', 'vgg16_bn', 'vgg19_bn', 'vgg19',
+           'resnet18', 'resnet34',]
 
 
 model_urls = {
@@ -33,8 +32,6 @@ model_urls = {
     'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
     'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
     'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
-    # Inception v3 ported from TensorFlow
-    'inception_v3_google': 'https://download.pytorch.org/models/inception_v3_google-1a9a5a14.pth',
     # vgg with TensorFlow
     'vgg11': 'https://download.pytorch.org/models/vgg11-bbd30ac9.pth',
     'vgg13': 'https://download.pytorch.org/models/vgg13-c768596a.pth',
@@ -51,9 +48,6 @@ model_urls = {
     'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
     'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
 }
-
-_InceptionOuputs = namedtuple('InceptionOuputs', ['logits', 'aux_logits'])
-
 
 # In[3]:
 
@@ -104,13 +98,13 @@ validation_data = {}
 loss_train_data = {}
 loss_validation_data = {}
 
-plt.imshow(train_loader.dataset.train_data[1].numpy()) #Potentially printing out an image
+#plt.imshow(train_loader.dataset.train_data[1].numpy()) #Potentially printing out an image
 
 
 # In[ ]:
 
 
-plt.imshow(train_loader.dataset.train_data[10].numpy()) # another image
+#plt.imshow(train_loader.dataset.train_data[10].numpy()) # another image
 
 
 # #### Modèle 1: FCC sans dropout
@@ -442,448 +436,6 @@ def vgg19_bn(pretrained=False, **kwargs):
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['vgg19_bn']))
     return model
-
-
-# #### Modèles 7 et 8: Inception V3 avec et sans dropout
-
-# In[ ]:
-
-
-def inception_v3(pretrained=False, dropout=True, **kwargs):
-    r"""Inception v3 model architecture from
-    `"Rethinking the Inception Architecture for Computer Vision" <http://arxiv.org/abs/1512.00567>`_.
-    .. note::
-        **Important**: In contrast to the other models the inception_v3 expects tensors with a size of
-        N x 3 x 299 x 299, so ensure your images are sized accordingly.
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-        aux_logits (bool): If True, add an auxiliary branch that can improve training.
-            Default: *True*
-        transform_input (bool): If True, preprocesses the input according to the method with which it
-            was trained on ImageNet. Default: *False*
-    """
-    if pretrained:
-        if 'transform_input' not in kwargs:
-            kwargs['transform_input'] = True
-        if 'aux_logits' in kwargs:
-            original_aux_logits = kwargs['aux_logits']
-            kwargs['aux_logits'] = True
-        else:
-            original_aux_logits = True
-        model = Inception3(**kwargs)
-        model.load_state_dict(model_zoo.load_url(model_urls['inception_v3_google']))
-        if not original_aux_logits:
-            model.aux_logits = False
-            del model.AuxLogits
-        return model
-    if dropout:
-        return Inception3WithDropout(**kwargs)
-    else :
-        return Inception3WithoutDropout(**kwargs)
-
-
-class Inception3WithDropout(nn.Module):
-
-    def __init__(self, model_id, num_classes=1000, aux_logits=True, transform_input=False):
-        super(Inception3WithDropout, self).__init__()
-        self.model_id = model_id
-        self.aux_logits = aux_logits
-        self.transform_input = transform_input
-        self.Conv2d_1a_3x3 = BasicConv2d(1, 32, kernel_size=3, stride=2)
-        self.Conv2d_2a_3x3 = BasicConv2d(32, 32, kernel_size=3)
-        self.Conv2d_2b_3x3 = BasicConv2d(32, 64, kernel_size=3, padding=1)
-        self.Conv2d_3b_1x1 = BasicConv2d(64, 80, kernel_size=1)
-        self.Conv2d_4a_3x3 = BasicConv2d(80, 192, kernel_size=3)
-        self.Mixed_5b = InceptionA(192, pool_features=32)
-        self.Mixed_5c = InceptionA(256, pool_features=64)
-        self.Mixed_5d = InceptionA(288, pool_features=64)
-        self.Mixed_6a = InceptionB(288)
-        self.Mixed_6b = InceptionC(768, channels_7x7=128)
-        self.Mixed_6c = InceptionC(768, channels_7x7=160)
-        self.Mixed_6d = InceptionC(768, channels_7x7=160)
-        self.Mixed_6e = InceptionC(768, channels_7x7=192)
-        if aux_logits:
-            self.AuxLogits = InceptionAux(768, num_classes)
-        self.Mixed_7a = InceptionD(768)
-        self.Mixed_7b = InceptionE(1280)
-        self.Mixed_7c = InceptionE(2048)
-        self.fc = nn.Linear(2048, num_classes)
-
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-                import scipy.stats as stats
-                stddev = m.stddev if hasattr(m, 'stddev') else 0.1
-                X = stats.truncnorm(-2, 2, scale=stddev)
-                values = torch.as_tensor(X.rvs(m.weight.numel()), dtype=m.weight.dtype)
-                values = values.view(m.weight.size())
-                with torch.no_grad():
-                    m.weight.copy_(values)
-            elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
-
-    def forward(self, x):
-        if self.transform_input:
-            x_ch0 = torch.unsqueeze(x[:, 0], 1) * (0.229 / 0.5) + (0.485 - 0.5) / 0.5
-            x_ch1 = torch.unsqueeze(x[:, 1], 1) * (0.224 / 0.5) + (0.456 - 0.5) / 0.5
-            x_ch2 = torch.unsqueeze(x[:, 2], 1) * (0.225 / 0.5) + (0.406 - 0.5) / 0.5
-            x = torch.cat((x_ch0, x_ch1, x_ch2), 1)
-        # N x 1 x 299 x 299
-        x = self.Conv2d_1a_3x3(x)
-        # N x 32 x 149 x 149
-        x = self.Conv2d_2a_3x3(x)
-        # N x 32 x 147 x 147
-        x = self.Conv2d_2b_3x3(x)
-        # N x 64 x 147 x 147
-        x = F.max_pool2d(x, kernel_size=3, stride=2)
-        # N x 64 x 73 x 73
-        x = self.Conv2d_3b_1x1(x)
-        # N x 80 x 73 x 73
-        x = self.Conv2d_4a_3x3(x)
-        # N x 192 x 71 x 71
-        x = F.max_pool2d(x, kernel_size=3, stride=2)
-        # N x 192 x 35 x 35
-        x = self.Mixed_5b(x)
-        # N x 256 x 35 x 35
-        x = self.Mixed_5c(x)
-        # N x 288 x 35 x 35
-        x = self.Mixed_5d(x)
-        # N x 288 x 35 x 35
-        x = self.Mixed_6a(x)
-        # N x 768 x 17 x 17
-        x = self.Mixed_6b(x)
-        # N x 768 x 17 x 17
-        x = self.Mixed_6c(x)
-        # N x 768 x 17 x 17
-        x = self.Mixed_6d(x)
-        # N x 768 x 17 x 17
-        x = self.Mixed_6e(x)
-        # N x 768 x 17 x 17
-        if self.training and self.aux_logits:
-            aux = self.AuxLogits(x)
-        # N x 768 x 17 x 17
-        x = self.Mixed_7a(x)
-        # N x 1280 x 8 x 8
-        x = self.Mixed_7b(x)
-        # N x 2048 x 8 x 8
-        x = self.Mixed_7c(x)
-        # N x 2048 x 8 x 8
-        # Adaptive average pooling
-        x = F.adaptive_avg_pool2d(x, (1, 1))
-        # N x 2048 x 1 x 1
-        x = F.dropout(x, training=self.training)
-        # N x 2048 x 1 x 1
-        x = x.view(x.size(0), -1)
-        # N x 2048
-        x = self.fc(x)
-        x = F.log_softmax(x, dim = 1)
-        # N x 1000 (num_classes)
-        if self.training and self.aux_logits:
-            return _InceptionOuputs(x, aux)
-        return x
-
-class Inception3WithoutDropout(nn.Module):
-
-    def __init__(self, model_id, num_classes=1000, aux_logits=True, transform_input=False):
-        super(Inception3WithoutDropout, self).__init__()
-        self.model_id = model_id
-        self.aux_logits = aux_logits
-        self.transform_input = transform_input
-        self.Conv2d_1a_3x3 = BasicConv2d(1, 32, kernel_size=3, stride=2)
-        self.Conv2d_2a_3x3 = BasicConv2d(32, 32, kernel_size=3)
-        self.Conv2d_2b_3x3 = BasicConv2d(32, 64, kernel_size=3, padding=1)
-        self.Conv2d_3b_1x1 = BasicConv2d(64, 80, kernel_size=1)
-        self.Conv2d_4a_3x3 = BasicConv2d(80, 192, kernel_size=3)
-        self.Mixed_5b = InceptionA(192, pool_features=32)
-        self.Mixed_5c = InceptionA(256, pool_features=64)
-        self.Mixed_5d = InceptionA(288, pool_features=64)
-        self.Mixed_6a = InceptionB(288)
-        self.Mixed_6b = InceptionC(768, channels_7x7=128)
-        self.Mixed_6c = InceptionC(768, channels_7x7=160)
-        self.Mixed_6d = InceptionC(768, channels_7x7=160)
-        self.Mixed_6e = InceptionC(768, channels_7x7=192)
-        if aux_logits:
-            self.AuxLogits = InceptionAux(768, num_classes)
-        self.Mixed_7a = InceptionD(768)
-        self.Mixed_7b = InceptionE(1280)
-        self.Mixed_7c = InceptionE(2048)
-        self.fc = nn.Linear(2048, num_classes)
-
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-                import scipy.stats as stats
-                stddev = m.stddev if hasattr(m, 'stddev') else 0.1
-                X = stats.truncnorm(-2, 2, scale=stddev)
-                values = torch.as_tensor(X.rvs(m.weight.numel()), dtype=m.weight.dtype)
-                values = values.view(m.weight.size())
-                with torch.no_grad():
-                    m.weight.copy_(values)
-            elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
-
-    def forward(self, x):
-        if self.transform_input:
-            x_ch0 = torch.unsqueeze(x[:, 0], 1) * (0.229 / 0.5) + (0.485 - 0.5) / 0.5
-            x_ch1 = torch.unsqueeze(x[:, 1], 1) * (0.224 / 0.5) + (0.456 - 0.5) / 0.5
-            x_ch2 = torch.unsqueeze(x[:, 2], 1) * (0.225 / 0.5) + (0.406 - 0.5) / 0.5
-            x = torch.cat((x_ch0, x_ch1, x_ch2), 1)
-        # N x 1 x 299 x 299
-        x = self.Conv2d_1a_3x3(x)
-        # N x 32 x 149 x 149
-        x = self.Conv2d_2a_3x3(x)
-        # N x 32 x 147 x 147
-        x = self.Conv2d_2b_3x3(x)
-        # N x 64 x 147 x 147
-        x = F.max_pool2d(x, kernel_size=3, stride=2)
-        # N x 64 x 73 x 73
-        x = self.Conv2d_3b_1x1(x)
-        # N x 80 x 73 x 73
-        x = self.Conv2d_4a_3x3(x)
-        # N x 192 x 71 x 71
-        x = F.max_pool2d(x, kernel_size=3, stride=2)
-        # N x 192 x 35 x 35
-        x = self.Mixed_5b(x)
-        # N x 256 x 35 x 35
-        x = self.Mixed_5c(x)
-        # N x 288 x 35 x 35
-        x = self.Mixed_5d(x)
-        # N x 288 x 35 x 35
-        x = self.Mixed_6a(x)
-        # N x 768 x 17 x 17
-        x = self.Mixed_6b(x)
-        # N x 768 x 17 x 17
-        x = self.Mixed_6c(x)
-        # N x 768 x 17 x 17
-        x = self.Mixed_6d(x)
-        # N x 768 x 17 x 17
-        x = self.Mixed_6e(x)
-        # N x 768 x 17 x 17
-        if self.training and self.aux_logits:
-            aux = self.AuxLogits(x)
-        # N x 768 x 17 x 17
-        x = self.Mixed_7a(x)
-        # N x 1280 x 8 x 8
-        x = self.Mixed_7b(x)
-        # N x 2048 x 8 x 8
-        x = self.Mixed_7c(x)
-        # N x 2048 x 8 x 8
-        # Adaptive average pooling
-        x = F.adaptive_avg_pool2d(x, (1, 1))
-        # N x 2048 x 1 x 1 This is the dropout line that needs to be commented out.
-        #x = F.dropout(x, training=self.training)
-        # N x 2048 x 1 x 1
-        x = x.view(x.size(0), -1)
-        # N x 2048
-        x = self.fc(x)
-        # N x 1000 (num_classes)
-        x = F.log_softmax(x, dim = 1)
-        if self.training and self.aux_logits:
-            return _InceptionOuputs(x, aux)
-        return x
-
-class InceptionA(nn.Module):
-
-    def __init__(self, in_channels, pool_features):
-        super(InceptionA, self).__init__()
-        self.branch1x1 = BasicConv2d(in_channels, 64, kernel_size=1)
-
-        self.branch5x5_1 = BasicConv2d(in_channels, 48, kernel_size=1)
-        self.branch5x5_2 = BasicConv2d(48, 64, kernel_size=5, padding=2)
-
-        self.branch3x3dbl_1 = BasicConv2d(in_channels, 64, kernel_size=1)
-        self.branch3x3dbl_2 = BasicConv2d(64, 96, kernel_size=3, padding=1)
-        self.branch3x3dbl_3 = BasicConv2d(96, 96, kernel_size=3, padding=1)
-
-        self.branch_pool = BasicConv2d(in_channels, pool_features, kernel_size=1)
-
-    def forward(self, x):
-        branch1x1 = self.branch1x1(x)
-
-        branch5x5 = self.branch5x5_1(x)
-        branch5x5 = self.branch5x5_2(branch5x5)
-
-        branch3x3dbl = self.branch3x3dbl_1(x)
-        branch3x3dbl = self.branch3x3dbl_2(branch3x3dbl)
-        branch3x3dbl = self.branch3x3dbl_3(branch3x3dbl)
-
-        branch_pool = F.avg_pool2d(x, kernel_size=3, stride=1, padding=1)
-        branch_pool = self.branch_pool(branch_pool)
-
-        outputs = [branch1x1, branch5x5, branch3x3dbl, branch_pool]
-        return torch.cat(outputs, 1)
-
-
-class InceptionB(nn.Module):
-
-    def __init__(self, in_channels):
-        super(InceptionB, self).__init__()
-        self.branch3x3 = BasicConv2d(in_channels, 384, kernel_size=3, stride=2)
-
-        self.branch3x3dbl_1 = BasicConv2d(in_channels, 64, kernel_size=1)
-        self.branch3x3dbl_2 = BasicConv2d(64, 96, kernel_size=3, padding=1)
-        self.branch3x3dbl_3 = BasicConv2d(96, 96, kernel_size=3, stride=2)
-
-    def forward(self, x):
-        branch3x3 = self.branch3x3(x)
-
-        branch3x3dbl = self.branch3x3dbl_1(x)
-        branch3x3dbl = self.branch3x3dbl_2(branch3x3dbl)
-        branch3x3dbl = self.branch3x3dbl_3(branch3x3dbl)
-
-        branch_pool = F.max_pool2d(x, kernel_size=3, stride=2)
-
-        outputs = [branch3x3, branch3x3dbl, branch_pool]
-        return torch.cat(outputs, 1)
-
-
-class InceptionC(nn.Module):
-
-    def __init__(self, in_channels, channels_7x7):
-        super(InceptionC, self).__init__()
-        self.branch1x1 = BasicConv2d(in_channels, 192, kernel_size=1)
-
-        c7 = channels_7x7
-        self.branch7x7_1 = BasicConv2d(in_channels, c7, kernel_size=1)
-        self.branch7x7_2 = BasicConv2d(c7, c7, kernel_size=(1, 7), padding=(0, 3))
-        self.branch7x7_3 = BasicConv2d(c7, 192, kernel_size=(7, 1), padding=(3, 0))
-
-        self.branch7x7dbl_1 = BasicConv2d(in_channels, c7, kernel_size=1)
-        self.branch7x7dbl_2 = BasicConv2d(c7, c7, kernel_size=(7, 1), padding=(3, 0))
-        self.branch7x7dbl_3 = BasicConv2d(c7, c7, kernel_size=(1, 7), padding=(0, 3))
-        self.branch7x7dbl_4 = BasicConv2d(c7, c7, kernel_size=(7, 1), padding=(3, 0))
-        self.branch7x7dbl_5 = BasicConv2d(c7, 192, kernel_size=(1, 7), padding=(0, 3))
-
-        self.branch_pool = BasicConv2d(in_channels, 192, kernel_size=1)
-
-    def forward(self, x):
-        branch1x1 = self.branch1x1(x)
-
-        branch7x7 = self.branch7x7_1(x)
-        branch7x7 = self.branch7x7_2(branch7x7)
-        branch7x7 = self.branch7x7_3(branch7x7)
-
-        branch7x7dbl = self.branch7x7dbl_1(x)
-        branch7x7dbl = self.branch7x7dbl_2(branch7x7dbl)
-        branch7x7dbl = self.branch7x7dbl_3(branch7x7dbl)
-        branch7x7dbl = self.branch7x7dbl_4(branch7x7dbl)
-        branch7x7dbl = self.branch7x7dbl_5(branch7x7dbl)
-
-        branch_pool = F.avg_pool2d(x, kernel_size=3, stride=1, padding=1)
-        branch_pool = self.branch_pool(branch_pool)
-
-        outputs = [branch1x1, branch7x7, branch7x7dbl, branch_pool]
-        return torch.cat(outputs, 1)
-
-
-class InceptionD(nn.Module):
-
-    def __init__(self, in_channels):
-        super(InceptionD, self).__init__()
-        self.branch3x3_1 = BasicConv2d(in_channels, 192, kernel_size=1)
-        self.branch3x3_2 = BasicConv2d(192, 320, kernel_size=3, stride=2)
-
-        self.branch7x7x3_1 = BasicConv2d(in_channels, 192, kernel_size=1)
-        self.branch7x7x3_2 = BasicConv2d(192, 192, kernel_size=(1, 7), padding=(0, 3))
-        self.branch7x7x3_3 = BasicConv2d(192, 192, kernel_size=(7, 1), padding=(3, 0))
-        self.branch7x7x3_4 = BasicConv2d(192, 192, kernel_size=3, stride=2)
-
-    def forward(self, x):
-        branch3x3 = self.branch3x3_1(x)
-        branch3x3 = self.branch3x3_2(branch3x3)
-
-        branch7x7x3 = self.branch7x7x3_1(x)
-        branch7x7x3 = self.branch7x7x3_2(branch7x7x3)
-        branch7x7x3 = self.branch7x7x3_3(branch7x7x3)
-        branch7x7x3 = self.branch7x7x3_4(branch7x7x3)
-
-        branch_pool = F.max_pool2d(x, kernel_size=3, stride=2)
-        outputs = [branch3x3, branch7x7x3, branch_pool]
-        return torch.cat(outputs, 1)
-
-
-class InceptionE(nn.Module):
-
-    def __init__(self, in_channels):
-        super(InceptionE, self).__init__()
-        self.branch1x1 = BasicConv2d(in_channels, 320, kernel_size=1)
-
-        self.branch3x3_1 = BasicConv2d(in_channels, 384, kernel_size=1)
-        self.branch3x3_2a = BasicConv2d(384, 384, kernel_size=(1, 3), padding=(0, 1))
-        self.branch3x3_2b = BasicConv2d(384, 384, kernel_size=(3, 1), padding=(1, 0))
-
-        self.branch3x3dbl_1 = BasicConv2d(in_channels, 448, kernel_size=1)
-        self.branch3x3dbl_2 = BasicConv2d(448, 384, kernel_size=3, padding=1)
-        self.branch3x3dbl_3a = BasicConv2d(384, 384, kernel_size=(1, 3), padding=(0, 1))
-        self.branch3x3dbl_3b = BasicConv2d(384, 384, kernel_size=(3, 1), padding=(1, 0))
-
-        self.branch_pool = BasicConv2d(in_channels, 192, kernel_size=1)
-
-    def forward(self, x):
-        branch1x1 = self.branch1x1(x)
-
-        branch3x3 = self.branch3x3_1(x)
-        branch3x3 = [
-            self.branch3x3_2a(branch3x3),
-            self.branch3x3_2b(branch3x3),
-        ]
-        branch3x3 = torch.cat(branch3x3, 1)
-
-        branch3x3dbl = self.branch3x3dbl_1(x)
-        branch3x3dbl = self.branch3x3dbl_2(branch3x3dbl)
-        branch3x3dbl = [
-            self.branch3x3dbl_3a(branch3x3dbl),
-            self.branch3x3dbl_3b(branch3x3dbl),
-        ]
-        branch3x3dbl = torch.cat(branch3x3dbl, 1)
-
-        branch_pool = F.avg_pool2d(x, kernel_size=3, stride=1, padding=1)
-        branch_pool = self.branch_pool(branch_pool)
-
-        outputs = [branch1x1, branch3x3, branch3x3dbl, branch_pool]
-        return torch.cat(outputs, 1)
-
-
-class InceptionAux(nn.Module):
-
-    def __init__(self, in_channels, num_classes):
-        super(InceptionAux, self).__init__()
-        self.conv0 = BasicConv2d(in_channels, 128, kernel_size=1)
-        self.conv1 = BasicConv2d(128, 768, kernel_size=5)
-        self.conv1.stddev = 0.01
-        self.fc = nn.Linear(768, num_classes)
-        self.fc.stddev = 0.001
-
-    def forward(self, x):
-        # N x 768 x 17 x 17
-        x = F.avg_pool2d(x, kernel_size=5, stride=3)
-        # N x 768 x 5 x 5
-        x = self.conv0(x)
-        # N x 128 x 5 x 5
-        x = self.conv1(x)
-        # N x 768 x 1 x 1
-        # Adaptive average pooling
-        x = F.adaptive_avg_pool2d(x, (1, 1))
-        # N x 768 x 1 x 1
-        x = x.view(x.size(0), -1)
-        # N x 768
-        x = self.fc(x)
-        # N x 1000 (num_classes)
-        return x
-
-
-class BasicConv2d(nn.Module):
-
-    def __init__(self, in_channels, out_channels, **kwargs):
-        super(BasicConv2d, self).__init__()
-        self.conv = nn.Conv2d(in_channels, out_channels, bias=False, **kwargs)
-        self.bn = nn.BatchNorm2d(out_channels, eps=0.001)
-
-    def forward(self, x):
-        x = self.conv(x)
-        x = self.bn(x)
-        return F.relu(x, inplace=True)
-
 
 # #### Modèles 9 et 10: Resnet avec et sans dropout
 
@@ -1275,12 +827,13 @@ fccFifthDropout = FccWithDropout("fcc_d.2",28*28, [512], 10, F.sigmoid, fifthDro
 cnn = SimpleCnnWithoutDropout("cnn")
 cnnHalfDropout = SimpleCnnWithDropout("cnn_d.5", halfDropout)
 cnnFifthDropout = SimpleCnnWithDropout("cnn_d.2", fifthDropout)
-vggWithoutDropout = vgg16(dropout=False, model_id = "vgg", num_classes=10)
-vggWithDropout = vgg16(dropout=True, model_id = "vgg_d", num_classes=10)
-inceptionWithoutDropout = inception_v3(dropout=False, model_id = "inception", num_classes=10)
-inceptionWithDropout = inception_v3(dropout=True, model_id = "inception_d", num_classes=10)
-resNetWithoutDropout = resnet18(dropout=False, model_id = "resnet", num_classes=10)
-resNetWithDropout = resnet18(dropout=True, model_id = "resnet_d", num_classes=10)
+vgg16WithoutDropout = vgg16(dropout=False, model_id = "vgg", num_classes=10)
+vgg16WithDropout = vgg16(dropout=True, model_id = "vgg_d", num_classes=10)
+vgg16BN = vgg16_bn(dropout=False, model_id = "vgg_bn")
+resNet18WithoutDropout = resnet18(dropout=False, model_id = "resnet18", num_classes=10)
+resNet18WithDropout = resnet18(dropout=True, model_id = "resnet18_d", num_classes=10)
+resNet34WithoutDropout = resnet34(dropout=False, model_id = "resnet34", num_classes=10)
+resNet34WithDropout = resnet34(dropout=True, model_id = "resnet34_d", num_classes=10)
 
 models = [
           fcc, 
@@ -1289,12 +842,13 @@ models = [
           cnn,
           cnnHalfDropout,
           cnnFifthDropout, 
-          vggWithoutDropout,
-          vggWithDropout, 
-          inceptionWithoutDropout,
-          inceptionWithDropout,
-          resNetWithoutDropout,
-          resNetWithDropout
+          vgg16WithoutDropout,
+          vgg16WithDropout, 
+          vgg16BN,
+          resNet18WithoutDropout,
+          resNet18WithDropout,
+          resNet34WithoutDropout,
+          resNet34WithDropout
          ]
 
 
@@ -1319,11 +873,16 @@ for i, data in validation_data.items():
 plt.legend()
 plt.xlabel("Epoch")
 plt.ylabel("Accuracy")
-plt.title("Different Acivation Functions")
+plt.title("Different Models Compared")
 plt.show()
 
 for i, data in loss_validation_data.items():
     plt.plot(data, label = i+" validating")
+plt.legend()
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.show()
+
 for i, data in loss_train_data.items():
     plt.plot(data, label = i+" training", linestyle = '--')
 plt.legend()
@@ -1331,7 +890,12 @@ plt.xlabel("Epoch")
 plt.ylabel("Loss")
 plt.show()
 
-
+for i, data in validation_data.items():
+    print (i + "'s final accuracy after training was %.4f;" % data[len(data) - 1])
+for i, data in loss_validation_data.items():
+    print (i + "'s final loss during validation was %.4f;" % data[len(data) - 1])
+for i, data in loss_train_data.items():
+    print (i + "'s final loss during training was %.4f;" % data[len(data) - 1])
 # In[ ]:
 
 
