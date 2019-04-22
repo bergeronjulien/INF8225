@@ -66,16 +66,16 @@ valid_data = FashionMNIST('../data', train=True, download=True,
                        torchvision.transforms.Normalize((0.1307,), (0.3081,))
                    ]))
 
-train_idx = np.random.choice(train_data.train_data.shape[0], 54000, replace=False)
+train_idx = np.random.choice(train_data.data.shape[0], 54000, replace=False)
 
-train_data.train_data = train_data.train_data[train_idx, :]
-train_data.train_labels = train_data.train_labels[torch.from_numpy(train_idx).type(torch.LongTensor)]
+train_data.data = train_data.data[train_idx, :]
+train_data.targets = train_data.targets[torch.from_numpy(train_idx).type(torch.LongTensor)]
 
 mask = np.ones(60000)
 mask[train_idx] = 0
 
-valid_data.train_data = valid_data.train_data[torch.from_numpy(np.argwhere(mask)), :].squeeze()
-valid_data.train_labels = valid_data.train_labels[torch.from_numpy(mask).type(torch.ByteTensor)]
+valid_data.data = valid_data.data[torch.from_numpy(np.argwhere(mask)), :].squeeze()
+valid_data.targets = valid_data.targets[torch.from_numpy(mask).type(torch.ByteTensor)]
 
 batch_size = 100
 test_batch_size = 100
@@ -842,9 +842,9 @@ models = [
           cnn,
           cnnHalfDropout,
           cnnFifthDropout, 
-          vgg16WithoutDropout,
-          vgg16WithDropout, 
-          vgg16BN,
+          #vgg16WithoutDropout,
+          #vgg16WithDropout, 
+          #vgg16BN,
           resNet18WithoutDropout,
           resNet18WithDropout,
           resNet34WithoutDropout,
@@ -869,7 +869,35 @@ for model in models:
 test(best_model, test_loader)
 print("The best model is: " + best_model.model_id)
 for i, data in validation_data.items():
-    plt.plot(data, label = i)
+    if "fcc" in i:
+        plt.plot(data, label = i)
+plt.legend()
+plt.xlabel("Epoch")
+plt.ylabel("Accuracy")
+plt.title("Different Models Compared")
+plt.show()
+
+for i, data in validation_data.items():
+    if "cnn" in i:
+        plt.plot(data, label = i)
+plt.legend()
+plt.xlabel("Epoch")
+plt.ylabel("Accuracy")
+plt.title("Different Models Compared")
+plt.show()
+
+for i, data in validation_data.items():
+    if "vgg" in i:
+        plt.plot(data, label = i)
+plt.legend()
+plt.xlabel("Epoch")
+plt.ylabel("Accuracy")
+plt.title("Different Models Compared")
+plt.show()
+
+for i, data in validation_data.items():
+    if "resnet" in i:
+        plt.plot(data, label = i)
 plt.legend()
 plt.xlabel("Epoch")
 plt.ylabel("Accuracy")
@@ -878,13 +906,68 @@ plt.show()
 
 for i, data in loss_validation_data.items():
     plt.plot(data, label = i+" validating")
+    if "fcc" in i:
+        plt.plot(data, label = i)
+plt.legend()
+plt.xlabel("Epoch")
+plt.ylabel("Accuracy")
+plt.title("Different Models Compared")
+plt.show()
+
+for i, data in loss_validation_data.items():
+    if "cnn" in i:
+        plt.plot(data, label = i)
+plt.legend()
+plt.xlabel("Epoch")
+plt.ylabel("Accuracy")
+plt.title("Different Models Compared")
+plt.show()
+
+for i, data in loss_validation_data.items():
+    if "vgg" in i:
+        plt.plot(data, label = i)
+plt.legend()
+plt.xlabel("Epoch")
+plt.ylabel("Accuracy")
+plt.title("Different Models Compared")
+plt.show()
+
+for i, data in loss_validation_data.items():
+    if "resnet" in i:
+        plt.plot(data, label = i)
+plt.legend()
+plt.xlabel("Epoch")
+plt.ylabel("Accuracy")
+plt.title("Different Models Compared")
+plt.show()
+
+for i, data in loss_train_data.items():
+    if "fcc" in i:
+        plt.plot(data, label = i+" training", linestyle = '--')
 plt.legend()
 plt.xlabel("Epoch")
 plt.ylabel("Loss")
 plt.show()
 
 for i, data in loss_train_data.items():
-    plt.plot(data, label = i+" training", linestyle = '--')
+    if "cnn" in i:
+        plt.plot(data, label = i+" training", linestyle = '--')
+plt.legend()
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.show()
+
+for i, data in loss_train_data.items():
+    if "vgg" in i:
+        plt.plot(data, label = i+" training", linestyle = '--')
+plt.legend()
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.show()
+
+for i, data in loss_train_data.items():
+    if "resnet" in i:
+        plt.plot(data, label = i+" training", linestyle = '--')
 plt.legend()
 plt.xlabel("Epoch")
 plt.ylabel("Loss")
