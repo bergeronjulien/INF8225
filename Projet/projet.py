@@ -94,7 +94,7 @@ valid_loader = torch.utils.data.DataLoader(valid_data,
 
 test_loader = torch.utils.data.DataLoader(
     FashionMNIST('../data', train=False, transform=torchvision.transforms.Compose([
-                       torchvision.transforms.Grayscale(3),
+                       #torchvision.transforms.Grayscale(3),
                        torchvision.transforms.ToTensor(),
                        torchvision.transforms.Normalize((0.1307,), (0.3081,))
                    ])),
@@ -299,6 +299,7 @@ class VGG(nn.Module):
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.classifier(x)
+        x = F.log_softmax(x, dim = 1)
         return x
 
     def _initialize_weights(self):
@@ -575,6 +576,7 @@ class Inception3WithDropout(nn.Module):
         x = x.view(x.size(0), -1)
         # N x 2048
         x = self.fc(x)
+        x = F.log_softmax(x, dim = 1)
         # N x 1000 (num_classes)
         if self.training and self.aux_logits:
             return _InceptionOuputs(x, aux)
@@ -675,6 +677,7 @@ class Inception3WithoutDropout(nn.Module):
         # N x 2048
         x = self.fc(x)
         # N x 1000 (num_classes)
+        x = F.log_softmax(x, dim = 1)
         if self.training and self.aux_logits:
             return _InceptionOuputs(x, aux)
         return x
@@ -865,7 +868,7 @@ class InceptionAux(nn.Module):
         x = x.view(x.size(0), -1)
         # N x 768
         x = self.fc(x)
-        # N x 1000
+        # N x 1000 (num_classes)
         return x
 
 
@@ -1151,6 +1154,19 @@ def resnet18(pretrained=False, dropout=True, **kwargs):
         model.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
     return model
 
+def resnet34(pretrained=False, dropout=True, **kwargs):
+    """Constructs a ResNet-34 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        dropout (bool): If True, returns a model using dropout
+    """
+    if dropout:
+        model = ResNetWithDropout(BasicBlockWithDropout, [3, 4, 6, 3], **kwargs)
+    else :
+        model = ResNetWithoutDropout(BasicBlockWithoutDropout, [3, 4, 6, 3], **kwargs)
+    if pretrained:
+        model.load_state_dict(model_zoo.load_url(model_urls['resnet34']))
+    return model
 
 # #### Entraînement
 
@@ -1267,16 +1283,16 @@ resNetWithoutDropout = resnet18(dropout=False, model_id = "resnet", num_classes=
 resNetWithDropout = resnet18(dropout=True, model_id = "resnet_d", num_classes=10)
 
 models = [
-          #fcc, 
-          #fccHalfDropout, 
-          #fccFifthDropout,
-          #cnn,
-          #cnnHalfDropout,
-          #cnnFifthDropout, 
-          #vggWithoutDropout,
-          #vggWithDropout, 
-          #inceptionWithoutDropout,
-          #inceptionWithDropout,
+          fcc, 
+          fccHalfDropout, 
+          fccFifthDropout,
+          cnn,
+          cnnHalfDropout,
+          cnnFifthDropout, 
+          vggWithoutDropout,
+          vggWithDropout, 
+          inceptionWithoutDropout,
+          inceptionWithDropout,
           resNetWithoutDropout,
           resNetWithDropout
          ]
@@ -1290,7 +1306,7 @@ models = [
 best_precision = 0
 for model in models:
     model.cuda()  # if you have access to a gpu
-    model, precision = experiment(model, epochs=10)
+    model, precision = experiment(model, epochs=20)
     print("final precision for model ", model.model_id, " is ", precision)
     if precision > best_precision:
         best_precision = precision
