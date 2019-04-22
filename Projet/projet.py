@@ -874,7 +874,7 @@ for i, data in validation_data.items():
 plt.legend()
 plt.xlabel("Epoch")
 plt.ylabel("Accuracy")
-plt.title("Different Models Compared")
+plt.title("Accuracy of FCC with and without dropout")
 plt.show()
 
 for i, data in validation_data.items():
@@ -883,7 +883,7 @@ for i, data in validation_data.items():
 plt.legend()
 plt.xlabel("Epoch")
 plt.ylabel("Accuracy")
-plt.title("Different Models Compared")
+plt.title("Accuracy of CNN with and without dropout")
 plt.show()
 
 for i, data in validation_data.items():
@@ -892,7 +892,7 @@ for i, data in validation_data.items():
 plt.legend()
 plt.xlabel("Epoch")
 plt.ylabel("Accuracy")
-plt.title("Different Models Compared")
+plt.title("Accuracy of VGG with and without dropout")
 plt.show()
 
 for i, data in validation_data.items():
@@ -901,17 +901,16 @@ for i, data in validation_data.items():
 plt.legend()
 plt.xlabel("Epoch")
 plt.ylabel("Accuracy")
-plt.title("Different Models Compared")
+plt.title("Accuracy of Resnet with and without dropout")
 plt.show()
 
 for i, data in loss_validation_data.items():
-    plt.plot(data, label = i+" validating")
     if "fcc" in i:
         plt.plot(data, label = i)
 plt.legend()
 plt.xlabel("Epoch")
-plt.ylabel("Accuracy")
-plt.title("Different Models Compared")
+plt.ylabel("Loss (validation)")
+plt.title("Validation losses of FCC with and without dropout")
 plt.show()
 
 for i, data in loss_validation_data.items():
@@ -919,8 +918,8 @@ for i, data in loss_validation_data.items():
         plt.plot(data, label = i)
 plt.legend()
 plt.xlabel("Epoch")
-plt.ylabel("Accuracy")
-plt.title("Different Models Compared")
+plt.ylabel("Loss (validation)")
+plt.title("Validation losses of CNN with and without dropout")
 plt.show()
 
 for i, data in loss_validation_data.items():
@@ -928,8 +927,8 @@ for i, data in loss_validation_data.items():
         plt.plot(data, label = i)
 plt.legend()
 plt.xlabel("Epoch")
-plt.ylabel("Accuracy")
-plt.title("Different Models Compared")
+plt.ylabel("Loss (validation)")
+plt.title("Validation losses of VGG with and without dropout")
 plt.show()
 
 for i, data in loss_validation_data.items():
@@ -937,8 +936,8 @@ for i, data in loss_validation_data.items():
         plt.plot(data, label = i)
 plt.legend()
 plt.xlabel("Epoch")
-plt.ylabel("Accuracy")
-plt.title("Different Models Compared")
+plt.ylabel("Loss (validation)")
+plt.title("Validation losses of Resnet with and without dropout")
 plt.show()
 
 for i, data in loss_train_data.items():
@@ -946,7 +945,8 @@ for i, data in loss_train_data.items():
         plt.plot(data, label = i+" training", linestyle = '--')
 plt.legend()
 plt.xlabel("Epoch")
-plt.ylabel("Loss")
+plt.ylabel("Loss (training)")
+plt.title("Training losses of FCC with and without dropout")
 plt.show()
 
 for i, data in loss_train_data.items():
@@ -954,7 +954,8 @@ for i, data in loss_train_data.items():
         plt.plot(data, label = i+" training", linestyle = '--')
 plt.legend()
 plt.xlabel("Epoch")
-plt.ylabel("Loss")
+plt.ylabel("Loss (training)")
+plt.title("Training losses of CNN with and without dropout")
 plt.show()
 
 for i, data in loss_train_data.items():
@@ -962,7 +963,8 @@ for i, data in loss_train_data.items():
         plt.plot(data, label = i+" training", linestyle = '--')
 plt.legend()
 plt.xlabel("Epoch")
-plt.ylabel("Loss")
+plt.ylabel("Loss (training)")
+plt.title("Training losses of VGG with and without dropout")
 plt.show()
 
 for i, data in loss_train_data.items():
@@ -970,7 +972,8 @@ for i, data in loss_train_data.items():
         plt.plot(data, label = i+" training", linestyle = '--')
 plt.legend()
 plt.xlabel("Epoch")
-plt.ylabel("Loss")
+plt.ylabel("Loss (training)")
+plt.title("Training losses of Resnet with and without dropout")
 plt.show()
 
 for i, data in validation_data.items():
